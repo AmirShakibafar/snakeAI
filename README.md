@@ -4,7 +4,7 @@ A competitive, AI-driven snake game built using Pygame. This project features a 
 
 ![Gameplay Screenshot](assets/Screenshot.png) 
 
-![Game Description](https://www.canva.com/design/DAGljK4FwoY/MUPUNkEUZ-6tbTE-2l5Wgg/view?utm_content=DAGljK4FwoY&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h470378f78b)
+[Game Description](https://www.canva.com/design/DAGljK4FwoY/MUPUNkEUZ-6tbTE-2l5Wgg/view?utm_content=DAGljK4FwoY&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h470378f78b)
 ---
 
 ## 🚀 Features
