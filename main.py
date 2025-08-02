@@ -51,7 +51,7 @@ class SnakeGame:
         # Initialize bots
         # you can add your bots here...
         self.bot1 = StrategicBot()  # Default AI
-        self.bot2 = GreedyBot()     # Default AI
+        self.bot2 = UserBot()     # Default AI
         # self.user_bot = UserBot()   # For human player
         
         self._name_handling(bot_name1, bot_name2)
@@ -60,6 +60,9 @@ class SnakeGame:
         self.snake2_advantage_time = 0
         self.snake1_advantage_start = 0
         self.snake2_advantage_start = 0
+    
+    
+        self.VALID_DIRECTIONS = {(0, 1), (0, -1), (1, 0), (-1, 0)}
     
         # Initialize game
         self.reset_round()
@@ -185,35 +188,30 @@ class SnakeGame:
         elapsed_game_time = current_time - self.round_start_time
         time_left = self.config.round_time - elapsed_game_time
         
-        # Check if both snakes are dead
         if not self.snake1.alive and not self.snake2.alive:
             self.end_round(None)
             return
 
-        # Update snakes and check for collisions
         if self.snake1.alive:
             move = self.bot1.decide_move(self.snake1, self.food, self.snake2)
-            self.snake1.change_direction(move)
+            if move in self.VALID_DIRECTIONS:
+                self.snake1.change_direction(move)
             self.snake1.update(self.clock.get_time() / 1000.0)
             
-            # Check if snake1 died from self collision or wall collision
             if not self.snake1.alive and self.snake1.self_collision:
-                # Start advantage timer for snake2
                 self.snake2_advantage_start = current_time
-                self.snake2_advantage_time = min(8.0, time_left)  # Cap at remaining time or 8 seconds
+                self.snake2_advantage_time = min(8.0, time_left)
         
         if self.snake2.alive:
             move = self.bot2.decide_move(self.snake2, self.food, self.snake1)
-            self.snake2.change_direction(move)
+            if move in self.VALID_DIRECTIONS:
+                self.snake2.change_direction(move)
             self.snake2.update(self.clock.get_time() / 1000.0)
             
-            # Check if snake2 died from self collision or wall collision
             if not self.snake2.alive and self.snake2.self_collision:
-                # Start advantage timer for snake1
                 self.snake1_advantage_start = current_time
-                self.snake1_advantage_time = min(8.0, time_left)  # Cap at remaining time or 8 seconds
+                self.snake1_advantage_time = min(8.0, time_left)
         
-        # Check if advantage time has expired for either snake
         if not self.snake1.alive and self.snake2.alive:
             if current_time - self.snake2_advantage_start >= self.snake2_advantage_time:
                 self.snake2.alive = False
@@ -222,10 +220,8 @@ class SnakeGame:
             if current_time - self.snake1_advantage_start >= self.snake1_advantage_time:
                 self.snake1.alive = False
         
-        # Check collisions, traps, etc.
         self.check_collisions()
         
-        # Check round end conditions
         if self.check_round_end():
             self.handle_round_end()
             

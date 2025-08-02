@@ -199,4 +199,4 @@ class UserBot(Bot):
     
     def decide_move(self, snake, food, opponent=None):
         # Implement your custom logic here
-        pass
+        return (0, 3)
