@@ -76,11 +76,6 @@ class SnakeGame:
             if event.type == pygame.QUIT:
                 self.quit_game()
             if event.type == pygame.KEYDOWN:
-                if isinstance(self.bot1, UserBot):
-                    self.bot1.change_direction(event.key)
-                if isinstance(self.bot2, UserBot):
-                    self.bot2.change_direction(event.key)
-                
                 if event.key == pygame.K_SPACE:
                     if self.game_state == GameState.GAME_OVER:
                         self.quit_game()
