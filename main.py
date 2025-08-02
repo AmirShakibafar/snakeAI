@@ -107,10 +107,9 @@ class SnakeGame:
             
             def apply_penalty(snake_to_penalize):
                 for _ in range(penalty):
-                    # Allow length to drop to zero
                     if len(snake_to_penalize.segments) > 0:
                         snake_to_penalize.segments.pop()
-                        snake_to_penalize.length -= 1
+                        snake_to_penalize.length -= 2
                 snake_to_penalize.shield_timer = self.config.shield_duration
 
             if len1 < len2:
