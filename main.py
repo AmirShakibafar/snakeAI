@@ -93,6 +93,57 @@ class SnakeGame:
     def quit_game(self) -> None:
         pygame.quit()
         sys.exit()
+        
+    def check_self_collisions(self):
+        current_time = pygame.time.get_ticks() / 1000.0
+        
+        for snake in [self.snake1, self.snake2]:
+            if not snake.alive:
+                continue
+                
+            head = snake.get_head_position()
+            body = snake.get_body_positions()
+            
+            # Check if head hit body
+            if any(tuple(head) == tuple(segment) for segment in body):
+                if not hasattr(snake, 'self_collision_start_time'):
+                    snake.self_collision_start_time = current_time
+                    snake.self_collision_delay = 3.0  # 3 second delay
+                    snake.is_colliding_with_self = True
+                    
+                # Check if delay has passed
+                if current_time - snake.self_collision_start_time >= snake.self_collision_delay:
+                    snake.alive = False
+                    snake.score = 0
+                    snake.death_time = current_time
+            else:
+                # Only try to delete if attributes exist
+                if hasattr(snake, 'is_colliding_with_self'):
+                    delattr(snake, 'is_colliding_with_self')
+                if hasattr(snake, 'self_collision_start_time'):
+                    delattr(snake, 'self_collision_start_time')
+
+    def draw_collision_warnings(self):
+        current_time = pygame.time.get_ticks() / 1000.0
+        
+        for snake in [self.snake1, self.snake2]:
+            if hasattr(snake, 'is_colliding_with_self') and snake.is_colliding_with_self:
+                time_left = snake.self_collision_delay - (current_time - snake.self_collision_start_time)
+                
+                # Draw countdown
+                font = pygame.font.SysFont('Arial', 20)
+                countdown_text = font.render(f"{max(0, int(time_left))}s", True, (255, 0, 0))
+                head_pos = snake.get_head_position()
+                text_pos = (head_pos[0] * GRID_SIZE, head_pos[1] * GRID_SIZE - 25)
+                self.screen.blit(countdown_text, text_pos)
+                
+                # Flash effect
+                if int(time_left * 2) % 2 == 0:
+                    pygame.draw.rect(
+                        self.screen, (255, 0, 0),
+                        (head_pos[0] * GRID_SIZE, head_pos[1] * GRID_SIZE, GRID_SIZE, GRID_SIZE),
+                        2
+                    )
 
     def handle_snake_on_snake_collision(self) -> None:
         if not self.snake1.alive or not self.snake2.alive: return
@@ -100,31 +151,56 @@ class SnakeGame:
 
         head1 = self.snake1.get_head_position()
         head2 = self.snake2.get_head_position()
+        
         body1_set = set(tuple(seg) for seg in self.snake1.get_body_positions())
         body2_set = set(tuple(seg) for seg in self.snake2.get_body_positions())
 
-        s1_hits_s2 = tuple(head1) == tuple(head2) or tuple(head1) in body2_set
-        s2_hits_s1 = tuple(head2) in body1_set
+        # Check collision types
+        head_to_head = tuple(head1) == tuple(head2)
+        s1_hits_s2_body = tuple(head1) in body2_set
+        s2_hits_s1_body = tuple(head2) in body1_set
 
-        if s1_hits_s2 or s2_hits_s1:
+        current_time = pygame.time.get_ticks() / 1000.0
+    
+        # Apply penalties based on collision type
+        if head_to_head or s1_hits_s2_body or s2_hits_s1_body:
+            if current_time - self.snake1.last_collision_time < 1.0:
+                self.snake1.consecutive_collisions += 1
+            if current_time - self.snake2.last_collision_time < 1.0:
+                self.snake2.consecutive_collisions += 1
+                
+            self.snake1.last_collision_time = current_time
+            self.snake2.last_collision_time = current_time
+            # Check for 3 consecutive collisions
+            if (self.snake1.consecutive_collisions >= 3 or 
+                self.snake2.consecutive_collisions >= 3):
+                self.snake1.score = 0
+                self.snake2.score = 0
+                return
+            
             len1, len2 = self.snake1.length, self.snake2.length
             penalty = self.config.collision_segment_penalty
-            
-            def apply_penalty(snake_to_penalize):
-                for _ in range(penalty):
-                    # Allow length to drop to zero
-                    if len(snake_to_penalize.segments) > 0:
-                        snake_to_penalize.segments.pop()
-                        snake_to_penalize.length -= 1
-                snake_to_penalize.shield_timer = self.config.shield_duration
 
             if len1 < len2:
-                apply_penalty(self.snake1)
+                self.apply_collision_penalty(self.snake1, penalty)
             elif len2 < len1:
-                apply_penalty(self.snake2)
+                self.apply_collision_penalty(self.snake2, penalty)
             else:
-                apply_penalty(self.snake1)
-                apply_penalty(self.snake2)
+                self.apply_collision_penalty(self.snake1, penalty//2)
+                self.apply_collision_penalty(self.snake2, penalty//2)
+              
+    def apply_collision_penalty(self, snake: Snake, penalty: int):
+        """Helper method to apply collision penalties"""
+        for _ in range(penalty):
+            if len(snake.segments) > 0:
+                if snake.grow > 0:
+                    snake.grow -= 1
+                else:
+                    snake.segments.pop()
+                snake.length -= 1
+        snake.shield_timer = self.config.shield_duration
+        snake.score = max(0, snake.score - penalty)  # Deduct score
+        snake.collisions += 1
                 
     def check_food_and_trap_collisions(self) -> None:
         for snake in [self.snake1, self.snake2]:
@@ -147,7 +223,8 @@ class SnakeGame:
                 if move in self.VALID_DIRECTIONS:
                     snake.change_direction(move)
                 snake.update(self.clock.get_time() / 1000.0)
-
+        
+        self.check_self_collisions()
         self.check_food_and_trap_collisions()
         self.handle_snake_on_snake_collision()
 

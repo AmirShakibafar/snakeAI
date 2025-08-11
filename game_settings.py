@@ -72,11 +72,17 @@ class Snake(GameObject):
                  color_secondary: Tuple[int, int, int],
                  start_x: int, start_y: int,
                  agent_id: str = "player"):
+        self.collision_penalty = 0
+        self.consecutive_collisions = 0
+        self.last_collision_time = 0
         self.color_primary = color_primary
         self.color_secondary = color_secondary
         self.config = GameConfig()
         self.death_time = float('inf')
         self.agent_id = agent_id
+        self.self_collision_start_time = 0
+        self.self_collision_delay = 3.0
+        self.is_colliding_with_self = False
         self.reset(start_x, start_y)
 
     def reset(self, start_x: int, start_y: int) -> None:
@@ -107,7 +113,7 @@ class Snake(GameObject):
     def update(self, dt:float) -> bool:
         if not self.alive:
             return False
-
+        
         if self.shield_timer > 0:
             self.shield_timer -= dt
             self.shield_flash = (self.shield_flash + dt * 10) % 1
@@ -143,8 +149,10 @@ class Snake(GameObject):
                 if new_head == segment:
                     self.alive = False
                     self.self_collision = True
+                    self.score = 0
                     self.death_time = pygame.time.get_ticks() / 1000.0
                     return False
+                
         return True
     
     def check_collision_with_other(self, other_snake: 'Snake') -> None:
@@ -168,7 +176,7 @@ class Snake(GameObject):
                     (pixel_x, pixel_y),
                     GRID_SIZE//2 + 2, 2
                 )
-
+            
             if i == 0:
                 cx, cy = pixel_x, pixel_y
                 half = GRID_SIZE // 2
@@ -310,16 +318,37 @@ def get_distance(pos1: Tuple[int, int], pos2: Tuple[int, int]) -> float:
     return math.hypot(pos1[0] - pos2[0], pos1[1] - pos2[1])
 
 def generate_spawn_positions() -> Tuple[Tuple[int, int], Tuple[int, int], List[Tuple[int, int]]]:
-    s1 = (random.randint(1, GRID_WIDTH - 2), random.randint(1, GRID_HEIGHT - 2))
-    s2 = (random.randint(1, GRID_WIDTH - 2), random.randint(1, GRID_HEIGHT - 2))
-    while get_distance(s1, s2) < 5:
-        s2 = (random.randint(1, GRID_WIDTH - 2), random.randint(1, GRID_HEIGHT - 2))
+    # Generate snake positions first
+    s1 = (random.randint(1, GRID_WIDTH // 3), random.randint(1, GRID_HEIGHT - 2))
+    s2 = (random.randint(2 * GRID_WIDTH // 3, GRID_WIDTH - 2), 
+          random.randint(1, GRID_HEIGHT - 2))
+    
+    # Create quadrants for balanced distribution
+    quadrants = [
+        (1, GRID_WIDTH // 2, 1, GRID_HEIGHT // 2),       # Top-left
+        (GRID_WIDTH // 2, GRID_WIDTH - 2, 1, GRID_HEIGHT // 2),  # Top-right
+        (1, GRID_WIDTH // 2, GRID_HEIGHT // 2, GRID_HEIGHT - 2),  # Bottom-left
+        (GRID_WIDTH // 2, GRID_WIDTH - 2, GRID_HEIGHT // 2, GRID_HEIGHT - 2)  # Bottom-right
+    ]
     
     fruit_positions = []
-    while len(fruit_positions) < 30:
-        pos = (random.randint(1, GRID_WIDTH - 2), random.randint(1, GRID_HEIGHT - 2))
-        if pos not in fruit_positions and pos != s1 and pos != s2:
+    apples_per_quadrant = 8  # Distribute apples evenly
+    
+    for q in quadrants:
+        min_x, max_x, min_y, max_y = q
+        for _ in range(apples_per_quadrant):
+            pos = (random.randint(min_x, max_x), random.randint(min_y, max_y))
+            while pos in [s1, s2] or pos in fruit_positions:
+                pos = (random.randint(min_x, max_x), random.randint(min_y, max_y))
             fruit_positions.append(pos)
+    
+    # Add some random apples for variety
+    for _ in range(8):
+        pos = (random.randint(1, GRID_WIDTH - 2), random.randint(1, GRID_HEIGHT - 2))
+        while pos in [s1, s2] or pos in fruit_positions:
+            pos = (random.randint(1, GRID_WIDTH - 2), random.randint(1, GRID_HEIGHT - 2))
+        fruit_positions.append(pos)
+    
     return s1, s2, fruit_positions
 
 def is_safe(snake: Snake, new_head_pos: List[int], other_snake: Optional[Snake], traps: Trap) -> bool:
