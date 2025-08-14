@@ -93,6 +93,7 @@ class Tournament:
             "total_snake2_apples": self.total_snake2_apples,
             "W/L_Ratio_Snake1": self.snake1_win_ratio,
             "W/L_Ratio_Snake2": self.snake2_win_ratio
+
         })
         self.current_round += 1
     
@@ -125,14 +126,20 @@ class Tournament:
         # Must have completed all rounds to determine normal winner
         if len(self.results) < self.config.max_rounds:
             return None
+        
+        # 1. First compare total points (apples)
+        if self.total_snake1_apples > self.total_snake2_apples:
+            return self.snake1_name
+        if self.total_snake2_apples > self.total_snake1_apples:
+            return self.snake2_name
             
-        # Normal victory conditions after all rounds
+        # 2. If points are equal, compare round wins
         if self.snake1_wins > self.snake2_wins:
             return self.snake1_name
         if self.snake2_wins > self.snake1_wins:
             return self.snake2_name
             
-        # If round wins are equal, use weighted scoring (Weighted Scoring)
+        # 3. If completely tied, use weighted scoring as final tiebreaker
         snake1_weighted = (self.total_snake1_apples * 0.7) + (self.snake1_wins * 30)
         snake2_weighted = (self.total_snake2_apples * 0.7) + (self.snake2_wins * 30)
         
@@ -141,13 +148,13 @@ class Tournament:
         if snake2_weighted > snake1_weighted:
             return self.snake2_name
             
-        # If still tied, use trap hits as secondary metric (fewer traps hit is better)
+        # 4. If still tied, use trap hits as secondary metric (fewer traps hit is better)
         if self.snake1_total_traps < self.snake2_total_traps:
             return self.snake1_name
         if self.snake2_total_traps < self.snake1_total_traps:
             return self.snake2_name
             
-        # If completely tied, return None to trigger tiebreaker round (Tiebreaker Policy)
+        # 5. If completely tied, return None to trigger tiebreaker round (Tiebreaker Policy)
         return None
     
     def is_tournament_over(self) -> bool:
