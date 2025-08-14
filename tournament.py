@@ -126,17 +126,17 @@ class Tournament:
         # Must have completed all rounds to determine normal winner
         if len(self.results) < self.config.max_rounds:
             return None
-        
-        # 1. First compare total points (apples)
-        if self.total_snake1_apples > self.total_snake2_apples:
-            return self.snake1_name
-        if self.total_snake2_apples > self.total_snake1_apples:
-            return self.snake2_name
-            
-        # 2. If points are equal, compare round wins
+
+        # 1. First compare win rounds
         if self.snake1_wins > self.snake2_wins:
             return self.snake1_name
         if self.snake2_wins > self.snake1_wins:
+            return self.snake2_name
+        
+        # 2. If rounds are equal, compare total points (apples)
+        if self.total_snake1_apples > self.total_snake2_apples:
+            return self.snake1_name
+        if self.total_snake2_apples > self.total_snake1_apples:
             return self.snake2_name
             
         # 3. If completely tied, use weighted scoring as final tiebreaker
