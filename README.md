@@ -50,13 +50,13 @@ python main.py
 
 The following AI bots are included in the game:
 
-| Bot          | Strategy Description                                           |
-|--------------|---------------------------------------------------------------|
-| `RandomBot`  | Chooses directions randomly                                    |
-| `GreedyBot`  | Moves toward the nearest food                                  |
-| `StrategicBot` | Avoids traps, considers opponent position, seeks survival     |
-| `CustomBot`  | Placeholder for your own custom logic                          |
-| `UserBot`    | Allows human input (currently not active by default)          |
+| Bot            | Strategy Description                                           |
+|--------------  |----------------------------------------------------------------|
+| `RandomBot`    | Chooses directions randomly                                    |
+| `GreedyBot`    | Moves toward the nearest food                                  |
+| `StrategicBot` | Avoids traps, considers opponent position, seeks survival      |
+| `CustomBot`    | Placeholder for your own custom logic                          |
+| `UserBot`      | Allows human input (currently not active by default)           |
 
 To change the bots used in the game, modify the following lines in `main.py` (or wherever `SnakeGame` is initialized):
 
