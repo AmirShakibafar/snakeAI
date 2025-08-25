@@ -11,7 +11,7 @@ from bot import RandomBot, GreedyBot, StrategicBot, CustomBot, UserBot
 from tournament import Tournament
 
 class SnakeGame:
-    def __init__(self, bot_name1:str=None, bot_name2:str=None):
+    def __init__(self, bot1_cls=None, bot2_cls=None, total_rounds: int = 3):
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("Snake Tournament")
@@ -33,9 +33,13 @@ class SnakeGame:
         self.snake2: Optional[Snake] = None
         self.food: Optional[Food] = None
         self.traps: Optional[Trap] = None
-    
-        self.bot1 = StrategicBot()
-        self.bot2 = GreedyBot()
+        
+        self.bot1 = bot1_cls() if bot1_cls else None
+        self.bot2 = bot2_cls() if bot2_cls else None
+        self.total_rounds = total_rounds
+        self.current_round = 0
+        self.scores = {self.bot1.name: 0, self.bot2.name: 0} if bot1_cls and bot2_cls else {}
+        self.clock = pygame.time.Clock()
         
         self.VALID_DIRECTIONS = {(0, 1), (0, -1), (1, 0), (-1, 0)}
         self.reset_round()
@@ -70,6 +74,10 @@ class SnakeGame:
         self.traps.spawn_multiple(self.config.trap_count, all_segments, self.food.positions)
         
         self.round_start_time = pygame.time.get_ticks() / 1000.0
+    
+    def reset_for_next_round(self):
+        swap = self.current_round % 2 == 1  # Swap every other round
+        self.reset_round(swap_positions=swap)
     
     def handle_events(self) -> None:
         for event in pygame.event.get():
@@ -248,15 +256,15 @@ class SnakeGame:
             elif self.snake2.score > self.snake1.score: self.round_winner = self.snake2.agent_id
             else: self.round_winner = None
         
-        self.tournament.record_round(
-            winner=self.round_winner,
-            snake1_score=self.snake1.score,
-            snake2_score=self.snake2.score,
-            snake1_traps_hit=self.snake1.traps_hit,
-            snake2_traps_hit=self.snake2.traps_hit,
-            snake1_collisions=self.snake1.collisions,
-            snake2_collisions=self.snake2.collisions
-        )
+        # self.tournament.record_round(
+        #     winner=self.round_winner,
+        #     snake1_score=self.snake1.score,
+        #     snake2_score=self.snake2.score,
+        #     snake1_traps_hit=self.snake1.traps_hit,
+        #     snake2_traps_hit=self.snake2.traps_hit,
+        #     snake1_collisions=self.snake1.collisions,
+        #     snake2_collisions=self.snake2.collisions
+        # )
 
         # Check tournament status
         if self.tournament.is_tournament_over():
@@ -381,12 +389,44 @@ class SnakeGame:
         self.screen.blit(final_score_surface, (WIDTH//2 - final_score_surface.get_width()//2, HEIGHT//2))
         self.screen.blit(instruction, (WIDTH//2 - instruction.get_width()//2, HEIGHT//2 + 100))
         
-    def run(self) -> None:
-        while True:
+    def round_over(self) -> bool:
+        """Return True if the current round is over (time up, snakes dead, or no food)."""
+        elapsed = (pygame.time.get_ticks() / 1000.0) - self.round_start_time
+        time_up = elapsed >= self.config.round_time
+        one_or_both_dead = not self.snake1.alive or not self.snake2.alive
+        no_food = len(self.food.positions) == 0
+        return time_up or one_or_both_dead or no_food
+
+
+    def get_winner_name_for_round(self) -> Optional[str]:
+        """Return winner of the current round from tournament records, None if draw."""
+        if not self.tournament.results:
+            return None
+        return self.tournament.results[-1]['winner']
+
+    def get_winner_name(self) -> Optional[str]:
+        """Return the overall match winner using Tournament logic."""
+        return self.tournament.get_winner()
+
+    # ----------------- Main Run Loop -----------------
+    def run(self) -> Optional[str]:
+        """Play all rounds in a match and return winner name."""
+        self.current_round = 0
+        while self.current_round < self.total_rounds:
             self.handle_events()
             self.update()
             self.draw()
             self.clock.tick(60)
+
+            if self.round_over():
+                winner = self.get_winner_name_for_round()
+                if winner:
+                    self.scores[winner] += 1
+                self.current_round += 1
+                self.reset_for_next_round()
+
+        return self.get_winner_name()
+
 
 if __name__ == "__main__":
     game = SnakeGame()
