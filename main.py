@@ -11,15 +11,17 @@ from bot import RandomBot, GreedyBot, StrategicBot, CustomBot, UserBot
 from tournament import Tournament
 
 class SnakeGame:
-    def __init__(self, bot1_cls=None, bot2_cls=None, total_rounds: int = 3):
-        pygame.init()
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption("Snake Tournament")
+    def __init__(self, bot1_cls=None, bot2_cls=None, total_rounds: int = 3, headless=False):
+        self.headless = headless
+        pygame.init() 
         self.clock = pygame.time.Clock()
+        if not self.headless:
+            self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+            pygame.display.set_caption("Snake Tournament")            
+            self.font = pygame.font.SysFont('Arial', 24)
+            self.medium_font = pygame.font.SysFont('Arial', 36)
+            self.large_font = pygame.font.SysFont('Arial', 60, bold=True)
         
-        self.font = pygame.font.SysFont('Arial', 24)
-        self.medium_font = pygame.font.SysFont('Arial', 36)
-        self.large_font = pygame.font.SysFont('Arial', 60, bold=True)
         
         self.config = GameConfig()
         self.game_state = GameState.START
@@ -39,7 +41,6 @@ class SnakeGame:
         self.total_rounds = total_rounds
         self.current_round = 0
         self.scores = {self.bot1.name: 0, self.bot2.name: 0} if bot1_cls and bot2_cls else {}
-        self.clock = pygame.time.Clock()
         
         self.VALID_DIRECTIONS = {(0, 1), (0, -1), (1, 0), (-1, 0)}
         self.reset_round()
@@ -220,12 +221,15 @@ class SnakeGame:
     def update(self) -> None:
         if self.game_state != GameState.PLAYING: return
 
+        # Use a fixed time step in headless mode, otherwise use the real clock time
+        dt = 0.1 if self.headless else self.clock.get_time() / 1000.0
+
         for snake, bot, opponent in [(self.snake1, self.bot1, self.snake2), (self.snake2, self.bot2, self.snake1)]:
             if snake.alive:
                 move = bot.decide_move(snake, self.food, self.traps, opponent)
                 if move in self.VALID_DIRECTIONS:
                     snake.change_direction(move)
-                snake.update(self.clock.get_time() / 1000.0)
+                snake.update(dt)
         
         self.check_self_collisions()
         self.check_food_and_trap_collisions()
@@ -409,23 +413,42 @@ class SnakeGame:
         return self.tournament.get_winner()
 
     # ----------------- Main Run Loop -----------------
+    # ----------------- Main Run Loop -----------------
     def run(self) -> Optional[str]:
         """Play all rounds in a match and return winner name."""
-        self.current_round = 0
-        while self.current_round < self.total_rounds:
-            self.handle_events()
-            self.update()
-            self.draw()
-            self.clock.tick(60)
-
-            if self.round_over():
-                winner = self.get_winner_name_for_round()
-                if winner:
-                    self.scores[winner] += 1
-                self.current_round += 1
-                self.reset_for_next_round()
-
-        return self.get_winner_name()
+        self.start_new_tournament()
+        
+        running = True
+        while running:
+            if self.headless:
+                # --- HEADLESS LOGIC ---
+                # In headless mode, we just loop the core logic until the game is over.
+                self.update()
+                if self.game_state == GameState.GAME_OVER:
+                    running = False
+                elif self.game_state == GameState.ROUND_OVER:
+                    # Automatically start the next round without waiting for input
+                    self.current_round += 1
+                    if self.current_round <= self.total_rounds:
+                        self.start_next_round()
+                    else:
+                        self.game_state = GameState.GAME_OVER # End if all rounds are played
+            else:
+                # --- GUI LOGIC ---
+                self.handle_events()
+                self.update()
+                self.draw()
+                self.clock.tick(60) # Limit frame rate for smooth visuals
+                if self.game_state == GameState.GAME_OVER:
+                    # In GUI mode, we wait for the user to quit after the game ends.
+                    # The actual exit is handled in handle_events().
+                    pass
+        
+        # Determine and return the final winner after the loop ends
+        self.final_winner = self.tournament.get_winner()
+        if not self.headless:
+             self.show_final_results() # Print final results to console if in GUI mode
+        return self.final_winner
 
 
 if __name__ == "__main__":

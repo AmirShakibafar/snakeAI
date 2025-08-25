@@ -256,13 +256,12 @@ def compute_leaderboard(data):
 def print_leaderboard(rows):
     """Pretty print a global leaderboard with rank and group."""
     print("\n=== Leaderboard (Global) ===")
-    header = f"{'Rank':>4}  {'Team':15} {'Grp':>3} {'Pts':>3} {'W':>2} {'D':>2} {'L':>2} {'GF':>3} {'GA':>3} {'GD':>3}"
+    header = f"{'Rank':>4}  {'Team':<35} {'Grp':>3} {'Pts':>3} {'W':>2} {'D':>2} {'L':>2} {'GF':>3} {'GA':>3} {'GD':>3}"
     print(header)
     print("-" * len(header))
     for idx, r in enumerate(rows, 1):
-        print(f"{idx:>4}  {r['team']:15} {r['group']:>3} {r['points']:>3} {r['wins']:>2} {r['draws']:>2} {r['losses']:>2} "
+        print(f"{idx:>4}  {r['team']:<35} {r['group']:>3} {r['points']:>3} {r['wins']:>2} {r['draws']:>2} {r['losses']:>2} "
               f"{r['goals_for']:>3} {r['goals_against']:>3} {r['goal_diff']:>3}")
-
 
 def export_csv(rows, output_path: str):
     """Export leaderboard rows to CSV."""
@@ -324,7 +323,7 @@ def cli_report(input_file: str, out_json: str, out_csv: str = "", out_md: str = 
         print(f"📝 Markdown saved to {out_md}")
 
 
-def cli_play(input_file: str, output_file: str = ""):
+def cli_play(input_file: str, output_file: str = "", headless: bool = False):
     """Play all matches in a tournament JSON file using SnakeGame."""
     if not output_file:
         output_file = input_file  # overwrite if no output specified
@@ -347,7 +346,7 @@ def cli_play(input_file: str, output_file: str = ""):
                 continue
 
             print(f"\n🎮 Playing {bot1.name} vs {bot2.name}")
-            game = SnakeGame(bot1.__class__, bot2.__class__, total_rounds=3)
+            game = SnakeGame(bot1.__class__, bot2.__class__, total_rounds=3, headless=headless)
             winner_name = game.run()  # Returns winner after all rounds
 
             # Assign scores (winner 1, loser 0)
@@ -367,6 +366,7 @@ def cli_play(input_file: str, output_file: str = ""):
 
 
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Tournament CLI tool")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -381,6 +381,7 @@ if __name__ == "__main__":
     gen_parser.add_argument("-t", "--teams", nargs="+", help="Team IDs (optional, will use bots.json if omitted)")
     gen_parser.add_argument("-g", "--group-size", type=int, required=True, help="Number of teams per group")
     gen_parser.add_argument("-o", "--output", type=str, default="tournament.json", help="Output JSON file")
+
 
     # Update standings
     update_parser = subparsers.add_parser("update", help="Update tournament standings from match results JSON")
@@ -411,7 +412,7 @@ if __name__ == "__main__":
     play_parser = subparsers.add_parser("play", help="Play all matches in a tournament JSON")
     play_parser.add_argument("-i", "--input", required=True, help="Input tournament JSON")
     play_parser.add_argument("-o", "--output", default="", help="Output tournament JSON after playing")
-
+    play_parser.add_argument("--headless", action="store_true", help="Run games without GUI for faster execution")
 
     args = parser.parse_args()
 
@@ -433,11 +434,11 @@ if __name__ == "__main__":
             json.dump(results, f, indent=4, ensure_ascii=False)
         print(f"Tournament generated and saved to {args.output}")
 
+    elif args.command == "play":
+        cli_play(args.input, args.output, args.headless)
+
     elif args.command == "show":
         cli_show(args.input)
-    
-    elif args.command == "play":
-        cli_play(args.input, args.output)
         
     elif args.command == "report":
         cli_report(args.input, args.output, args.csv, args.md)
